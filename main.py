@@ -23,10 +23,29 @@ def get_parse():
     parser.add_argument('--lr', type=float, default=0.001, help="set learning rate for training")
     parser.add_argument('--optim', type=str, default='Adam', help='set optimizer for training')
     parser.add_argument('--eval', action='store_true', help='Perform evaluation only')
+    parser.add_argument('--checkpoint', type=str, default='./checkpoints/model.pth', help="Path to checkpoint for evaluation")
     parser.add_argument('--use-wandb', action='store_true', default=False, help='use wandb to record log')
     
     args = parser.parse_args()
     return args
+
+def evaluate(net, valid_loader, loss_f, device):
+    loss_sum,acc_sum,total_num,total_step = 0,0,0,0
+    net.eval()
+    with torch.no_grad():
+        for step,(img,label) in enumerate(valid_loader):
+            img = img.to(device)
+            label = label.to(device)
+            out = net(img)          # forward
+            loss = loss_f(out, label)
+            loss_sum += loss.item()
+            prediction = torch.argmax(out, dim=1)
+            acc = (prediction == label).sum().item()    # compute acc
+            acc_sum += acc
+            total_num += len(label)
+            total_step += 1
+            
+    return loss_sum/total_step, acc_sum/total_num 
 
 def main(args):
     
@@ -43,6 +62,21 @@ def main(args):
     
     # define optimizer
     optimizer = optim.Adam(net.parameters(), lr = args.lr)
+    
+    # if eval only
+    if args.eval:
+        if not os.path.exists(args.checkpoint):
+            print("No checkpoints found in {}".format(args.checkpoint))
+            return
+        model = torch.load(args.checkpoint).to(device)
+        print("Start evaluating")
+        start = time.time()
+        l, acc = evaluate(model, test_loader, loss_f, device)
+        end = time.time()
+        print("Evaluation: loss {:.3f}, acc {:.3f}, time cost {:.3f}s".format(
+            l, acc, end-start
+        ))
+        return
     
     # start training
     print("Start training, total epoches: {}".format(args.epoch))
@@ -70,25 +104,27 @@ def main(args):
             acc = (prediction == label).sum().item()    # compute acc
             acc_sum += acc
             total_num += len(label)
-            total_step += 1
-            
-            # print("Step[{}] in epoch[{}/{}]: loss {:.3f}, accuracy {:.3f}".format(
-            #     step, epoch+1, args.epoch, loss.item(), acc/len(label)
-            # ))
+            total_step += 1    
+            # print("Step[{}] in epoch[{}/{}]: loss {:.3f}, accuracy {:.3f}".format(step, epoch+1, args.epoch, loss.item(), acc/len(label)))
             
         epoch_end = time.time()
         print("Epoch[{}/{}]: loss {:.3f}, accuracy {:.3f}, time cost {:.3f}s".format(
                 epoch+1, args.epoch, loss_sum/total_step, acc_sum/total_num, epoch_end-epoch_start
             ))
         
-        # Validate
-        # TODO
+        start_val = time.time()
+        l, acc = evaluate(net, test_loader, loss_f, device)
+        end_val = time.time()
+        print("Epoch[{}/{}](eval): loss {:.3f}, acc {:.3f}, time cost {:.3f}s".format(
+            epoch+1, args.epoch, l, acc, end_val-start_val
+        ))
     
     if not os.path.exists("./checkpoints/"):
         os.makedirs("./checkpoints/")
-    torch.save(net, "./checkpoints/model.pth")
+    torch.save(net, "./checkpoints/model.pth")      # TODO: add argparse for unique out path
+    print("Saving checkpoints at '{}'".format("./checkpoints/model.pth"))
     end = time.time()
-    print("Training finished, total time cost {:.3f}min".format((end-start)/60))
+    print("Training finished, final acc {:.3f}, total time cost {:.3f}min".format(acc, (end-start)/60))
     
 
 if __name__ == '__main__':
