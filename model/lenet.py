@@ -28,12 +28,17 @@ class LeNet(nn.Module):
             nn.Flatten(),
             # C5: (16×5×5)-->120
             nn.Linear(in_features=16*5*5, out_features=120),
+            nn.ReLU(),
             # F6: 120-->84
             nn.Linear(in_features=120, out_features=84),
+            nn.ReLU(),
         )
         
-        # OUTPUT: 84-->10
-        self.out = nn.Linear(in_features=84, out_features=10)
+        self.out = nn.Sequential(
+            # OUTPUT: 84-->10
+            nn.Linear(in_features=84, out_features=10),
+            nn.Softmax(dim=1),
+        )
         
     def forward(self, x):
         x = self.conv1(x)
