@@ -7,8 +7,9 @@ class LeNet(nn.Module):
         
         self.conv1 = nn.Sequential(
             # C1: (1×32×32)-->(6×28×28)
+            # for MNIST, input size is (1×28×28), so add padding=2 here
             # Conv kernel: (5×5),no stride,no padding
-            nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5),
+            nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, padding=2),
             nn.ReLU(),
             # S2: (6×28×28)-->(6×14×14)
             nn.MaxPool2d(kernel_size=2),
