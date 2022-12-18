@@ -10,11 +10,6 @@ import torch.optim as optim
 from model.lenet import LeNet
 from data.build_data import dataloader
 
-try:
-    import wandb
-except ImportError:
-    wandb = None
-
 def get_parse():
     parser = argparse.ArgumentParser('Pytorch_LeNet_MNIST', add_help=False)
     parser.add_argument('--data-path', type=str, default='./downloads/', help='path to dataset')
@@ -62,6 +57,13 @@ def main(args):
     
     # define optimizer
     optimizer = optim.Adam(net.parameters(), lr = args.lr)
+    
+    # if use wandb:
+    if args.use_wandb:
+        import wandb
+        if not os.path.exists('./logs'):
+            os.makedirs('./logs')
+        wandb.init(project='Lenet-MNIST', dir='./logs') # TODO: add argparse for unique out path
     
     # if eval only
     if args.eval:
@@ -118,6 +120,14 @@ def main(args):
         print("Epoch[{}/{}](eval): loss {:.3f}, acc {:.3f}, time cost {:.3f}s".format(
             epoch+1, args.epoch, l, acc, end_val-start_val
         ))
+        
+        if args.use_wandb:
+            wandb.log({
+                'train/acc': acc_sum/total_num,
+                'train/loss': loss_sum/total_step,
+                'test/acc': acc,
+                'test/loss': l
+            })
     
     if not os.path.exists("./checkpoints/"):
         os.makedirs("./checkpoints/")
