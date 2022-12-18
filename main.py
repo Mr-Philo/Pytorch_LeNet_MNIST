@@ -16,10 +16,11 @@ def get_parse():
     parser.add_argument('--batch-size', type=int, default=128, help="batch size for single GPU")
     parser.add_argument('--epoch', type=int, default=10, help="set epoches for training")
     parser.add_argument('--lr', type=float, default=0.001, help="set learning rate for training")
-    parser.add_argument('--optim', type=str, default='Adam', help='set optimizer for training')
+    parser.add_argument('--optim', type=str, default='Adam', help='set optimizer for training. choose between sgd, momentum, RMSprop, adam')
     parser.add_argument('--eval', action='store_true', help='Perform evaluation only')
     parser.add_argument('--checkpoint', type=str, default='./checkpoints/model.pth', help="Path to checkpoint for evaluation")
     parser.add_argument('--use-wandb', action='store_true', default=False, help='use wandb to record log')
+    parser.add_argument('--name', type=str, default='lenet-MNIST', help='The name of wandb job')
     
     args = parser.parse_args()
     return args
@@ -56,20 +57,22 @@ def main(args):
     loss_f = nn.CrossEntropyLoss()
     
     # define optimizer
-    optimizer = optim.Adam(net.parameters(), lr = args.lr)
-    
-    # if use wandb:
-    if args.use_wandb:
-        import wandb
-        if not os.path.exists('./logs'):
-            os.makedirs('./logs')
-        wandb.init(project='Lenet-MNIST', dir='./logs') # TODO: add argparse for unique out path
+    if args.optim == 'sgd':
+        optimizer = optim.SGD(net.parameters(), lr = args.lr)
+    elif args.optim == 'momentum':
+        optimizer = optim.SGD(net.parameters(), lr = args.lr, momentum=0.8)
+    elif args.optim == 'RMSprop':
+        optimizer = optim.RMSprop(net.parameters(), lr = args.lr, alpha=0.9)
+    elif args.optim == 'adam':
+        optimizer = optim.Adam(net.parameters(), lr = args.lr, betas=(0.9,0.99))
+    else:
+        print("Warning: Unsupport optimizer option {}, use adam instead".format(args.optim))
+        optimizer = optim.Adam(net.parameters(), lr = args.lr)
     
     # if eval only
     if args.eval:
         if not os.path.exists(args.checkpoint):
-            print("No checkpoints found in {}".format(args.checkpoint))
-            return
+            raise FileNotFoundError("No checkpoints found in '{}'".format(args.checkpoint))
         model = torch.load(args.checkpoint).to(device)
         print("Start evaluating")
         start = time.time()
@@ -79,6 +82,13 @@ def main(args):
             l, acc, end-start
         ))
         return
+    
+    # if use wandb:
+    if args.use_wandb:
+        import wandb
+        if not os.path.exists('./logs'):
+            os.makedirs('./logs')
+        wandb.init(project='Lenet-MNIST', dir='./logs', name=args.name)
     
     # start training
     print("Start training, total epoches: {}".format(args.epoch))
