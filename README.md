@@ -71,6 +71,8 @@ python main.py
     --checkpoint: Path to checkpoint for evaluation (default='./checkpoints/model.pth')
     --use-wandb: use wandb to record log
     --name: The name of wandb job (default='lenet-MNIST')
+    --use-im2col: Using im2col to replace convolution layer with linear layer in model structure
+    --seed: Fix seed for reproducibility
 ```
 
 By default, the model checkpoint will be stored in `./checkpoints/model.pth`, and the output log will be stored in `./logs`. You could modify them in argparse or simply replace them in the code.

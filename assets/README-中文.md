@@ -71,6 +71,8 @@ python main.py
     --checkpoint: 若只评估，则使用该选项指定待评估的模型的路径 (默认为'./checkpoints/model.pth')
     --use-wandb: 使用wandb来记录输出曲线
     --name: 若使用wandb，则使用该选项来指定wandb任务的名字 (默认为'lenet-MNIST')
+    --use-im2col: 使用im2col技术来将模型中的卷积层替换为线性层，同时保持模型应有的输出不变
+    --seed: 固定随机化种子，使训练可复现
 ```
 
 训练好的模型会被默认保存至`./checkpoints/model.pth`, 输出日志会被默认保存至`./logs`. 你可以利用命令行参数修改保存路径，也可以直接在代码中修改。

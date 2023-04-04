@@ -7,8 +7,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from model.lenet import LeNet
+from model.lenet import LeNet, im2col_LeNet
 from data.build_data import dataloader
+
 
 def get_parse():
     parser = argparse.ArgumentParser('Pytorch_LeNet_MNIST', add_help=False)
@@ -21,9 +22,21 @@ def get_parse():
     parser.add_argument('--checkpoint', type=str, default='./checkpoints/model.pth', help="Path to checkpoint for evaluation")
     parser.add_argument('--use-wandb', action='store_true', default=False, help='use wandb to record log')
     parser.add_argument('--name', type=str, default='lenet-MNIST', help='The name of wandb job')
+    parser.add_argument('--use-im2col', action='store_true', default=False, help='use im2col to accelerate convolution')
+    parser.add_argument('--seed', type=int, default=0, help='fix seed for reproducibility')
     
     args = parser.parse_args()
     return args
+
+
+def same_seeds(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 
 def evaluate(net, valid_loader, loss_f, device):
     loss_sum,acc_sum,total_num,total_step = 0,0,0,0
@@ -43,25 +56,35 @@ def evaluate(net, valid_loader, loss_f, device):
             
     return loss_sum/total_step, acc_sum/total_num 
 
+
 def main(args):
     
+    # define seed
+    if args.seed:
+        print("Set seed to {}".format(args.seed))
+        same_seeds(args.seed)
+        
     # prepare dataset
     print("Dataset folder: '{}'".format(args.data_path))
     train_loader, test_loader = dataloader(args.data_path, args.batch_size)
     
     # prepare model
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    net = LeNet().to(device)
+    if args.use_im2col:
+        net = im2col_LeNet().to(device)
+    else:  
+        net = LeNet().to(device)
     
     # define loss function
     loss_f = nn.CrossEntropyLoss()
     
     # define optimizer
+    args.optim = args.optim.lower()
     if args.optim == 'sgd':
         optimizer = optim.SGD(net.parameters(), lr = args.lr)
     elif args.optim == 'momentum':
         optimizer = optim.SGD(net.parameters(), lr = args.lr, momentum=0.8)
-    elif args.optim == 'RMSprop':
+    elif args.optim == 'rmsprop':
         optimizer = optim.RMSprop(net.parameters(), lr = args.lr, alpha=0.9)
     elif args.optim == 'adam':
         optimizer = optim.Adam(net.parameters(), lr = args.lr, betas=(0.9,0.99))
